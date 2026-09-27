@@ -1,12 +1,32 @@
 from tqdm import tqdm
-from deep_translator import GoogleTranslator
+from googletrans import Translator
 from itertools import chain
 import copy
+import asyncio
 from .language_configuration import fix_code_language, INVERTED_LANGUAGES
 from .logging_setup import logger
 import re
 import json
 import time
+
+
+class GoogleTranslatorWrapper:
+    def __init__(self, source="auto", target="en"):
+        self.source = source
+        self.target = target
+        self.translator = Translator()
+
+    def translate(self, text):
+        async def _translate():
+            result = await self.translator.translate(
+                text,
+                src=self.source,
+                dest=self.target
+            )
+            return result.text
+
+        return asyncio.run(_translate())
+
 
 TRANSLATION_PROCESS_OPTIONS = [
     "google_translator_batch",
@@ -54,7 +74,7 @@ def translate_iterative(segments, target, source=None):
         logger.debug("No source language")
         source = "auto"
 
-    translator = GoogleTranslator(source=source, target=target)
+    translator = GoogleTranslatorWrapper(source=source, target=target)
 
     for line in tqdm(range(len(segments_))):
         text = segments_[line]["text"]
@@ -157,7 +177,7 @@ def translate_batch(segments, target, chunk_size=2000, source=None):
 
     # translate chunks
     progress_bar = tqdm(total=len(segments), desc="Translating")
-    translator = GoogleTranslator(source=source, target=target)
+    translator = GoogleTranslatorWrapper(source=source, target=target)
     split_list = []
     try:
         for text, text_iterable in zip(text_merge, global_text_list):
@@ -305,7 +325,7 @@ def gpt_sequential(segments, model, target, source=None):
                 f"{str(error)} >> The text of segment {start} "
                 "is being corrected with Google Translate"
             )
-            translator = GoogleTranslator(
+            translator = GoogleTranslatorWrapper(
                 source=fixed_source, target=fixed_target
             )
             translated_text = translator.translate(text.strip())
@@ -399,7 +419,7 @@ def gpt_batch(segments, model, target, token_batch_limit=900, source=None):
                     "failed, is being corrected with Google Translate"
                 )
 
-                translator = GoogleTranslator(
+                translator = GoogleTranslatorWrapper(
                     source=fixed_source,
                     target=fixed_target
                 )
