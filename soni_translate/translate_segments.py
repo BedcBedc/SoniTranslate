@@ -25,9 +25,7 @@ class GoogleTranslatorWrapper:
             )
             return result.text
 
-        result = asyncio.run(_translate())
-        time.sleep(1)
-        return result
+        return asyncio.run(_translate())
 
 
 TRANSLATION_PROCESS_OPTIONS = [
@@ -81,6 +79,7 @@ def translate_iterative(segments, target, source=None):
     for line in tqdm(range(len(segments_))):
         text = segments_[line]["text"]
         translated_line = translator.translate(text.strip())
+        time.sleep(1)
         segments_[line]["text"] = translated_line
 
     return segments_
@@ -184,6 +183,7 @@ def translate_batch(segments, target, chunk_size=2000, source=None):
     try:
         for text, text_iterable in zip(text_merge, global_text_list):
             translated_line = translator.translate(text.strip())
+            time.sleep(1)
             split_text = translated_line.split("|||||")
             if len(split_text) == len(text_iterable):
                 progress_bar.update(len(split_text))
