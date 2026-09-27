@@ -28,9 +28,28 @@ class GoogleTranslatorWrapper:
         return asyncio.run(_translate())
 
 
+class HelsinkiTranslatorWrapper:
+    def __init__(self, source="en", target="tl"):
+        from transformers import MarianMTModel, MarianTokenizer
+
+        self.model_name = f"Helsinki-NLP/opus-mt-{source}-{target}"
+        self.tokenizer = MarianTokenizer.from_pretrained(self.model_name)
+        self.model = MarianMTModel.from_pretrained(self.model_name)
+
+    def translate(self, text):
+        translated = self.model.generate(
+            **self.tokenizer(text, return_tensors="pt", padding=True)
+        )
+        return self.tokenizer.decode(
+            translated[0],
+            skip_special_tokens=True
+        )
+
+
 TRANSLATION_PROCESS_OPTIONS = [
     "google_translator_batch",
     "google_translator",
+    "helsinki_opus_mt",
     "gpt-3.5-turbo-0125_batch",
     "gpt-3.5-turbo-0125",
     "gpt-4-turbo-preview_batch",
@@ -461,6 +480,19 @@ def translate_text(
                 fix_code_language(target),
                 fix_code_language(source)
             )
+
+        case "helsinki_opus_mt":
+            translator = HelsinkiTranslatorWrapper(
+                source="en",
+                target="tl"
+            )
+            translated_segments = copy.deepcopy(segments)
+
+            for line in tqdm(translated_segments, desc="Translating"):
+                line["text"] = translator.translate(line["text"].strip())
+
+            return translated_segments
+            
         case model if model in ["gpt-3.5-turbo-0125", "gpt-4-turbo-preview"]:
             return gpt_sequential(segments, model, target, source)
         case model if model in ["gpt-3.5-turbo-0125_batch", "gpt-4-turbo-preview_batch",]:
