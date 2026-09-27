@@ -25,7 +25,9 @@ class GoogleTranslatorWrapper:
             )
             return result.text
 
-        return asyncio.run(_translate())
+        result = asyncio.run(_translate())
+        time.sleep(1)
+        return result
 
 
 TRANSLATION_PROCESS_OPTIONS = [
