@@ -491,6 +491,12 @@ def translate_text(
             for line in tqdm(translated_segments, desc="Translating"):
                 line["text"] = translator.translate(line["text"].strip())
 
+                line["text"] = re.sub(
+                    r"(?<=\w)\s+-\s+(?=\w)",
+                    "-",
+                    line["text"],
+                )
+
             return translated_segments
             
         case model if model in ["gpt-3.5-turbo-0125", "gpt-4-turbo-preview"]:
