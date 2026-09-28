@@ -46,10 +46,49 @@ class HelsinkiTranslatorWrapper:
         )
 
 
+class NLLBTranslatorWrapper:
+    def __init__(self, source="eng_Latn", target="tgl_Latn"):
+        from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+
+        self.model_name = "facebook/nllb-200-distilled-600M"
+        self.source = source
+        self.target = target
+
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_name,
+            src_lang=self.source,
+            tgt_lang=self.target,
+        )
+        self.model = AutoModelForSeq2SeqLM.from_pretrained(
+            self.model_name
+        )
+
+    def translate(self, text):
+        inputs = self.tokenizer(
+            text,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+        )
+
+        translated = self.model.generate(
+            **inputs,
+            forced_bos_token_id=self.tokenizer.convert_tokens_to_ids(
+                self.target
+            ),
+        )
+
+        return self.tokenizer.batch_decode(
+            translated,
+            skip_special_tokens=True,
+        )[0]
+
+
 TRANSLATION_PROCESS_OPTIONS = [
     "google_translator_batch",
     "google_translator",
     "helsinki_opus_mt",
+    "nllb_200_600m",
     "gpt-3.5-turbo-0125_batch",
     "gpt-3.5-turbo-0125",
     "gpt-4-turbo-preview_batch",
@@ -491,6 +530,23 @@ def translate_text(
             for line in tqdm(translated_segments, desc="Translating"):
                 line["text"] = translator.translate(line["text"].strip())
 
+                line["text"] = re.sub(
+                    r"(?<=\w)\s+-\s+(?=\w)",
+                    "-",
+                    line["text"],
+                )
+
+            return translated_segments
+
+        case "nllb_200_600m":
+            translator = NLLBTranslatorWrapper(
+                source="eng_Latn",
+                target="tgl_Latn",
+            )
+            translated_segments = copy.deepcopy(segments)
+
+            for line in tqdm(translated_segments, desc="Translating"):
+                line["text"] = translator.translate(line["text"].strip())
                 line["text"] = re.sub(
                     r"(?<=\w)\s+-\s+(?=\w)",
                     "-",
